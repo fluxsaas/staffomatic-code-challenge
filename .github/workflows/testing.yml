@@ -1,0 +1,42 @@
+name: Run RSpec Tests
+
+# Run the workflow on every push
+on: [push]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      # Setup SQLite as the database
+      db:
+        image: sqlite
+        options: >-
+          --mount type=volume,source=mydata,target=/mydata
+
+    strategy:
+      matrix:
+        ruby-version: [3.2.2]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby-version }}
+
+      - name: Install dependencies
+        run: |
+          gem install bundler
+          bundle install --jobs 4 --retry 3
+
+      - name: Set up the database
+        run: |
+          cp config/database.yml.ci config/database.yml
+          bin/rails db:create db:schema:load
+
+      - name: Run RSpec tests
+        run: |
+          bundle exec rspec
